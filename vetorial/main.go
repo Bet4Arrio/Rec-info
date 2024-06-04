@@ -39,8 +39,9 @@ func LoadFromJson(name string) SistemaVetorial {
 }
 
 func VetorialFactory(c core.Corpus) SistemaVetorial {
-	Ndocs := len(c.Docs)
-	Ntermos := len(c.Termos)
+	var Ndocs, Ntermos int
+	Ndocs = len(c.Docs)
+	Ntermos = len(c.Termos)
 	Matriz := make([][]uint32, Ndocs)
 	for i := range Matriz {
 		Matriz[i] = make([]uint32, Ntermos)
@@ -54,8 +55,9 @@ func VetorialFactory(c core.Corpus) SistemaVetorial {
 	conter := 0
 	for k := range c.Termos {
 		for i, d := range c.Docs {
-			if d.Vocab[k] {
-				Matriz[i][conter] += 1
+			qnt, ok := d.Vocab[k]
+			if ok {
+				Matriz[i][conter] += qnt
 			}
 		}
 		// fmt.Println(Ndocs, Ntermos, Matriz[1][:])

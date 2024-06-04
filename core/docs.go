@@ -4,13 +4,11 @@ import (
 	"log"
 	"os"
 	"regexp"
-	"strings"
 )
 
 type Doc struct {
-	Name    Path
-	Content string
-	Vocab   map[string]bool
+	Name  Path
+	Vocab map[string]uint32
 }
 
 func FactoryDoc(fname Path) Doc {
@@ -18,19 +16,16 @@ func FactoryDoc(fname Path) Doc {
 	if err != nil {
 		log.Fatal(err, fname)
 	}
-	d := Doc{Name: fname, Content: strings.ToLower(string(content)), Vocab: make(map[string]bool)}
-	d.VocabSet()
+	d := Doc{Name: fname, Vocab: VocabSetCounter(string(content))}
 	return d
 }
 
-func (d Doc) VocabSet() {
-	for _, v := range d.GetTokens() {
-		d.Vocab[v] = true
+func VocabSetCounter(q string) map[string]uint32 {
+	Vocab := make(map[string]uint32)
+	for _, v := range GetTokens(q) {
+		Vocab[v]++
 	}
-}
-
-func (d Doc) GetTokens() []string {
-	return GetTokens(strings.ReplaceAll(d.Content, "\n", ""))
+	return Vocab
 }
 func GetTokens(q string) []string {
 	rgx := regexp.MustCompile(`\w+`)
