@@ -5,17 +5,19 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/bet4arrio/Inforecs/core"
 )
 
 type SistemaVetorial struct {
-	BoW        [][]uint32        `json:"bow"`    // DOC Incidencia TERMO
-	Tf         [][]float32       `json:"tf"`     // DOC Incidencia TERMO
+	BoW        [][]uint32        `json:"bow"` // DOC Incidencia TERMO
+	Tf         [][]float32       `json:"tf"`  // DOC Incidencia TERMO
+	Df         []uint32          `json:"df"`
 	TfIDF      [][]float32       `json:"tf-idf"` // DOC Incidencia TERMO
 	Docs_names []string          `json:"docs"`
 	Termos     map[string]uint64 `json:"termos"`
-	// TermosMap
 }
 
 type QueriedDocs struct {
@@ -49,6 +51,7 @@ func VetorialFactory(c core.Corpus) SistemaVetorial {
 
 	docsName := make([]string, 0, Ndocs)
 	termos := make(map[string]uint64, Ntermos)
+	TermosCount := make([]uint32, Ntermos)
 	for _, v := range c.Docs {
 		docsName = append(docsName, v.Name.Val)
 	}
@@ -58,6 +61,7 @@ func VetorialFactory(c core.Corpus) SistemaVetorial {
 			qnt, ok := d.Vocab[k]
 			if ok {
 				Matriz[i][conter] += qnt
+				TermosCount[conter] += 1
 			}
 		}
 		// fmt.Println(Ndocs, Ntermos, Matriz[1][:])
@@ -68,6 +72,7 @@ func VetorialFactory(c core.Corpus) SistemaVetorial {
 	return SistemaVetorial{
 		BoW:        Matriz,
 		Tf:         calcTf(Matriz),
+		Df:         TermosCount,
 		TfIDF:      calcTfIDF(Matriz),
 		Termos:     termos,
 		Docs_names: docsName,
@@ -106,10 +111,9 @@ func calcIDF(bow [][]uint32) [][]float32 {
 }
 
 func calcTfIDF(bow [][]uint32) [][]float32 {
-	// Check if documents is zero to avoid division by zero
 	documents := len(bow)
 	if documents == 0 {
-		panic("Number of documents cannot be zero")
+		panic("Number of documents need be more than 0 boy")
 	}
 
 	// Initialize TF-IDF matrix with zeros
@@ -127,11 +131,14 @@ func calcTfIDF(bow [][]uint32) [][]float32 {
 			totalTerms += float32(termCount)
 		}
 		for j, count := range doc {
-			termFreqs[i][j] = float32(count) / totalTerms
+			if count > 0 {
+				termFreqs[i][j] = float32(math.Log(float64(count))+1) / totalTerms
+
+			}
 		}
 	}
 
-	// Calculate inverse document frequency (IDF) for each term
+	// inverse document frequency (IDF)
 	idf := make([]float32, len(bow[0]))
 	for term := range bow[0] {
 		documentFrequency := 0
@@ -143,7 +150,6 @@ func calcTfIDF(bow [][]uint32) [][]float32 {
 		idf[term] = float32(math.Log(float64(documents) / float64(documentFrequency)))
 	}
 
-	// Calculate TF-IDF by multiplying TF and IDF for each term in each document
 	for i, doc := range termFreqs {
 		for j, tf := range doc {
 			tfidfMatrix[i][j] = tf * idf[j]
@@ -154,7 +160,7 @@ func calcTfIDF(bow [][]uint32) [][]float32 {
 }
 
 func (s SistemaVetorial) Performquery(q string) []QueriedDocs {
-	vector := s.bowOfQ(q)
+	vector := s.TfIdfOfQ(core.CleanUp(q))
 	resp := make([]QueriedDocs, 0, len(s.Docs_names))
 	for i := range s.BoW {
 		rank := calcCosProx(vector, s.BoW[i])
@@ -164,11 +170,15 @@ func (s SistemaVetorial) Performquery(q string) []QueriedDocs {
 		}
 	}
 
+	sort.SliceStable(resp, func(i, j int) bool {
+		return resp[i].Rank < resp[j].Rank
+	})
+
 	return resp
 
 }
 
-func (s SistemaVetorial) bowOfQ(query string) []uint32 {
+func (s SistemaVetorial) BowOfQ(query string) []uint32 {
 
 	bow := make([]uint32, len(s.Termos))
 	termos := core.GetTokens(query)
@@ -181,18 +191,31 @@ func (s SistemaVetorial) bowOfQ(query string) []uint32 {
 	return bow
 }
 
-// func (s SistemaVetorial) tfIdfOfQ(query string) []float32 {
-// 	base := make([]float32, len(s.Termos))
-// 	termos := core.GetTokens(query)
-// 	for i := range termos {
-// 		t, ok := s.Termos[termos[i]]
-// 		if ok {
-// 			base[t]++
-// 		}
-// 	}
+func (s SistemaVetorial) TfIdfOfQ(query string) []float32 {
+	bow := make([]float32, len(s.Termos))
+	tfidf := make([]float32, len(s.Termos))
+	termos := core.GetTokens(query)
+	total_Q_termos := len(termos)
+	for _, termo := range termos {
+		t, ok := s.Termos[termo]
+		if ok {
+			// fmt.Print(termo, "(", t, ") - ")
+			bow[t]++
+		}
+	}
+	fmt.Println()
+	for i := range bow {
+		if bow[i] > 0 {
+			tf := float32(math.Log(float64(bow[i]))+1) / float32(total_Q_termos)
+			idf := float32(math.Log(float64(s.Df[i])/float64(bow[i])) + 1)
+			fmt.Println(float64(bow[i]), " df", float64(s.Df[i]), "idf as fcu ", math.Log(float64(bow[i])/float64(s.Df[i])))
+			tfidf[i] = tf * idf
+			fmt.Println(i, "aa", tfidf[i], "idf: ", idf)
+		}
+	}
 
-//		return base
-//	}
+	return tfidf
+}
 func calcCosProx(q, v interface{}) float64 {
 	// Type assertion to convert interface{} to concrete types
 
@@ -248,4 +271,25 @@ func (s SistemaVetorial) Save() {
 		panic(err)
 	}
 	fmt.Println("Salvando")
+}
+
+func PageQuery(result []QueriedDocs) {
+	total := len(result)
+	begin := 0
+	pages := total / 5
+	page := 0
+	end := 5 % total
+	var cont string = "S"
+
+	for strings.ToLower(cont) == "s" && begin < end {
+		page++
+		for i := begin; i < end; i++ {
+			fmt.Println(i, result[i].Rank, ": ", result[i].Name)
+		}
+		begin = end
+		end += 5 % total
+		fmt.Printf("%d / %d paginas \n", page, pages)
+		fmt.Println("Mostar mais [s/N]")
+		fmt.Scanf("%s", &cont)
+	}
 }
