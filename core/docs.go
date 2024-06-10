@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strings"
 )
 
 type Doc struct {
@@ -16,8 +17,12 @@ func FactoryDoc(fname Path) Doc {
 	if err != nil {
 		log.Fatal(err, fname)
 	}
-	d := Doc{Name: fname, Vocab: VocabSetCounter(string(content))}
+	d := Doc{Name: fname, Vocab: VocabSetCounter(CleanUp(string(content)))}
 	return d
+}
+
+func CleanUp(q string) string {
+	return strings.ToLower(q)
 }
 
 func VocabSetCounter(q string) map[string]uint32 {
