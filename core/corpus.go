@@ -92,7 +92,7 @@ func (c Corpus) Show20() {
 		}
 	}
 
-	fmt.Println("Top", len(sortedTerms), " Terms by (Highest Values):")
+	fmt.Println("Salvo CSV com ", len(sortedTerms), " Termos.")
 }
 
 func getFiles(root string, extension string) []Path {

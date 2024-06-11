@@ -171,7 +171,7 @@ func (s SistemaVetorial) Performquery(q string) []QueriedDocs {
 	}
 
 	sort.SliceStable(resp, func(i, j int) bool {
-		return resp[i].Rank < resp[j].Rank
+		return resp[i].Rank > resp[j].Rank
 	})
 
 	return resp
@@ -208,9 +208,7 @@ func (s SistemaVetorial) TfIdfOfQ(query string) []float32 {
 		if bow[i] > 0 {
 			tf := float32(math.Log(float64(bow[i]))+1) / float32(total_Q_termos)
 			idf := float32(math.Log(float64(s.Df[i])/float64(bow[i])) + 1)
-			fmt.Println(float64(bow[i]), " df", float64(s.Df[i]), "idf as fcu ", math.Log(float64(bow[i])/float64(s.Df[i])))
 			tfidf[i] = tf * idf
-			fmt.Println(i, "aa", tfidf[i], "idf: ", idf)
 		}
 	}
 
@@ -290,6 +288,7 @@ func PageQuery(result []QueriedDocs) {
 		end += 5 % total
 		fmt.Printf("%d / %d paginas \n", page, pages)
 		fmt.Println("Mostar mais [s/N]")
+		cont = "n"
 		fmt.Scanf("%s", &cont)
 	}
 }
